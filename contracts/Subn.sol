@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
-
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract Subn is ERC721URIStorage {
+contract Subn {
     using Counters for Counters.Counter;
 
     struct Subscription {
+        address userId;
         uint256 serviceId;
-        uint256 purchaseDate;
+        uint256 lastPurchaseDate;
         uint256 expDate;
         bool autoRenew;
     }
@@ -27,17 +26,10 @@ contract Subn is ERC721URIStorage {
     struct Provider {
         uint256 Id;
         string name;
-        address controllerAddress;
-        address payoutAddress;
-        address paymentToken;
+        address providerAddress;
     }
 
-    event ProviderCreated(
-        uint256 providerId,
-        string name,
-        address payoutAddress,
-        address paymentToken
-    );
+    event ProviderCreated(uint256 providerId, string name);
 
     event ServiceCreated(
         uint256 serviceId,
@@ -66,31 +58,36 @@ contract Subn is ERC721URIStorage {
     mapping(uint256 => Service) services;
     mapping(uint256 => Provider) providers;
     mapping(uint256 => Subscription) subscriptions;
+
     Counters.Counter private _providerIds;
     Counters.Counter private _serviceIds;
-    Counters.Counter private _tokenIds;
+    Counters.Counter private _subIds;
 
-    constructor() ERC721("GameItem", "ITM") {}
+    IERC20 public paymentToken;
+
+    constructor(address _paymentToken) {
+        paymentToken = IERC20(_paymentToken);
+    }
 
     function createService(
         string memory _name,
         uint256 _unitPrice,
-        uint256 _durationTime,
-        bool _isActive
+        uint256 _durationTime
     ) public returns (uint256) {
-        uint256 newServiceId = _serviceIds.current();
-
-        // Check if sender is a controller of any provider
         uint256 providerId;
         for (uint256 i = 0; i < _providerIds.current(); i++) {
             Provider memory provider = providers[i];
-            if (provider.controllerAddress == msg.sender) {
+            if (provider.providerAddress == msg.sender) {
                 providerId = provider.Id;
                 break;
             }
         }
 
-        require(providerId >= 0, "Provider not found");
+        require(providerId > 0, "Provider not found");
+
+        _serviceIds.increment();
+
+        uint256 newServiceId = _serviceIds.current();
 
         services[newServiceId] = Service({
             Id: newServiceId,
@@ -98,27 +95,21 @@ contract Subn is ERC721URIStorage {
             unitPrice: _unitPrice,
             durationTime: _durationTime,
             providerId: providerId,
-            isActive: _isActive
+            isActive: true
         });
 
-        _serviceIds.increment();
         return newServiceId;
     }
 
-    function createProvider(
-        string memory _name,
-        address _paymentToken
-    ) public returns (uint256) {
+    function createProvider(string memory _name) public returns (uint256) {
+        _providerIds.increment();
         uint256 newProviderId = _providerIds.current();
         providers[newProviderId] = Provider({
             name: _name,
-            payoutAddress: msg.sender,
-            controllerAddress: msg.sender,
-            paymentToken: _paymentToken,
+            providerAddress: msg.sender,
             Id: newProviderId
         });
 
-        _providerIds.increment();
         return newProviderId;
     }
 
@@ -126,7 +117,7 @@ contract Subn is ERC721URIStorage {
         Service storage service = services[_serviceId];
         require(service.Id != 0, "Service does not exist");
         require(
-            msg.sender == providers[service.providerId].payoutAddress,
+            msg.sender == providers[service.providerId].providerAddress,
             "Only provider can toggle service status"
         );
 
@@ -138,12 +129,11 @@ contract Subn is ERC721URIStorage {
         require(service.Id != 0, "Service does not exist");
         require(service.isActive, "Service is not active");
 
-        uint256 newItemId = _tokenIds.current();
-        _mint(msg.sender, newItemId);
+        _subIds.increment();
+        uint256 newSubId = _subIds.current();
 
         // Transfer payment token from payer to provider payout address
         Provider memory provider = providers[service.providerId];
-        IERC20 paymentToken = IERC20(provider.paymentToken);
         uint256 requiredAmount = service.unitPrice;
 
         require(
@@ -153,7 +143,7 @@ contract Subn is ERC721URIStorage {
         require(
             paymentToken.transferFrom(
                 msg.sender,
-                provider.payoutAddress,
+                provider.providerAddress,
                 requiredAmount
             ),
             "Token transfer failed"
@@ -161,57 +151,61 @@ contract Subn is ERC721URIStorage {
 
         uint256 expDate = block.timestamp + service.durationTime;
 
-        subscriptions[newItemId] = Subscription({
+        subscriptions[newSubId] = Subscription({
+            userId: msg.sender,
             serviceId: _serviceId,
-            purchaseDate: block.timestamp,
+            lastPurchaseDate: block.timestamp,
             expDate: expDate,
             autoRenew: _autoRenew
         });
 
-        emit UserSubsed(
-            msg.sender,
-            newItemId,
-            _serviceId,
-            provider.Id,
-            expDate
-        );
-
-        _tokenIds.increment();
+        emit UserSubsed(msg.sender, newSubId, _serviceId, provider.Id, expDate);
     }
 
     function transferSubscriptionFees(uint256[] memory subIds) external {
         // Iterate over the subscription IDs and transfer payment to the service provider
-        for (uint256 i = 0; i < subIds.length; i++) {
+        for (uint256 i = 1; i < subIds.length; i++) {
             uint256 subId = subIds[i];
             Subscription memory subn = subscriptions[subId];
+            if (!subn.autoRenew) {
+                continue;
+            }
 
             // Check if auto-renew is enabled for the subscription and expiration date is within 3 days
-            if (subn.autoRenew && subn.expDate - block.timestamp <= 3 days) {
+            if (
+                subn.expDate < block.timestamp ||
+                subn.expDate - block.timestamp <= 3 days
+            ) {
                 Service memory service = services[subn.serviceId];
                 require(service.isActive, "Service is not active");
 
-                uint256 newExpDate = subn.expDate + service.durationTime;
-                subscriptions[subId].purchaseDate = block.timestamp;
-                subscriptions[subId].expDate = newExpDate;
-
-                Provider memory provider = providers[service.providerId];
-                address nftOwner = ownerOf(subId);
-                IERC20 paymentToken = IERC20(provider.paymentToken);
                 uint256 requiredAmount = service.unitPrice;
-
                 require(
-                    paymentToken.allowance(nftOwner, address(this)) >=
-                        requiredAmount,
+                    paymentToken.allowance(
+                        subscriptions[subId].userId,
+                        address(this)
+                    ) >= requiredAmount,
                     "Token transfer not approved"
                 );
+
+                Provider memory provider = providers[service.providerId];
                 require(
                     paymentToken.transferFrom(
-                        nftOwner,
-                        provider.payoutAddress,
+                        subscriptions[subId].userId,
+                        provider.providerAddress,
                         requiredAmount
                     ),
                     "Token transfer failed"
                 );
+
+                uint256 newExpDate = service.durationTime +
+                    (
+                        subn.expDate < block.timestamp
+                            ? block.timestamp
+                            : subn.expDate
+                    );
+                subscriptions[subId].lastPurchaseDate = block.timestamp;
+                subscriptions[subId].expDate = newExpDate;
 
                 emit SubnRenewed(
                     msg.sender,
@@ -222,20 +216,6 @@ contract Subn is ERC721URIStorage {
                 );
             }
         }
-    }
-
-    function structToString(
-        Subscription memory subn
-    ) public pure returns (string memory) {
-        bytes memory subscriptionData = abi.encode(subn);
-        return string(subscriptionData);
-    }
-
-    function tokenURI(
-        uint256 _tokenId
-    ) public view override returns (string memory) {
-        Subscription memory subn = subscriptions[_tokenId];
-        return structToString(subn);
     }
 
     function getService(
