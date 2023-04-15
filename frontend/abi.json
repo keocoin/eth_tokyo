@@ -71,12 +71,6 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "uint256",
-        "name": "id",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
         "internalType": "address",
         "name": "user",
         "type": "address"
@@ -112,12 +106,6 @@
   {
     "anonymous": false,
     "inputs": [
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "subId",
-        "type": "uint256"
-      },
       {
         "indexed": false,
         "internalType": "address",
@@ -278,6 +266,42 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "getSubscriptions",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "lastPurchaseDate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "expDate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "autoRenew",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct Subscriptions.Subscription[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "paymentToken",
     "outputs": [
@@ -304,13 +328,7 @@
       }
     ],
     "name": "subscribe",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "newSubId",
-        "type": "uint256"
-      }
-    ],
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -330,8 +348,13 @@
   {
     "inputs": [
       {
+        "internalType": "address[]",
+        "name": "users",
+        "type": "address[]"
+      },
+      {
         "internalType": "uint256[]",
-        "name": "subIds",
+        "name": "serviceIds",
         "type": "uint256[]"
       }
     ],
@@ -344,7 +367,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_subId",
+        "name": "_serviceId",
         "type": "uint256"
       }
     ],

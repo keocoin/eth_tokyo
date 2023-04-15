@@ -105,8 +105,7 @@ contract Subscriptions {
         bool _autoRenew
     ) external returns (uint256 newSubId) {
         Service storage service = services[_serviceId];
-        require(service.id != 0, "Service does not exist");
-        require(service.isActive, "Service is not active");
+        require(service.isActive, "Service does not exist or active");
 
         _subIds.increment();
         newSubId = _subIds.current();

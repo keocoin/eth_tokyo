@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react";
 import {
   usePrepareContractWrite,
   useContractWrite,
   useContractRead,
-  useAccount,
 } from "wagmi";
 import abi from "../../abi.json";
 import Approve from "./Approve";
@@ -56,7 +54,6 @@ const Services = () => {
     <>
       <div className="p-4 space-y-2">
         {servives.map((v: any, i: number) => {
-          console.log(v);
           return (
             <div key={i} className="p-4 border rounded-lg">
               <div className="text-2xl">{v.name}</div>
