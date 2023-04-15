@@ -1,14 +1,6 @@
-import * as React from "react";
-import {
-  usePrepareContractWrite,
-  useContractWrite,
-  useContract,
-  erc20ABI,
-  useSigner,
-} from "wagmi";
-import abi from "../../abi.json";
+import { useContract, erc20ABI, useSigner } from "wagmi";
 
-function CreateService() {
+function Approve() {
   const { data: signer } = useSigner();
 
   const contract: any = useContract({
@@ -16,7 +8,7 @@ function CreateService() {
     abi: erc20ABI,
   });
 
-  const approveA = async () => {
+  const approvePayToken = async () => {
     const results = await contract
       .connect(signer)
       .approve(
@@ -27,22 +19,27 @@ function CreateService() {
     console.log(results);
   };
 
-  //   const { config } = usePrepareContractWrite({
-  //     address: "0x8b418b51f8ab22def2e9245312f52ad1cd54c420",
-  //     abi: abi,
-  //     functionName: "approve",
-  //     args: [1],
-  //   });
-
-  //   const { write } = useContractWrite(config);
-
   return (
-    <div>
-      <button disabled={!approveA} onClick={() => approveA?.()}>
-        Approve
-      </button>
+    <div className="px-4">
+      <div className="message">
+        <span>Your remining allowance for Subn is 10 USDC.</span>
+      </div>
+      <div className="update space-x-2">
+        <input
+          type="number"
+          className="border p-2 px-4 w-20 rounded"
+          placeholder="100"
+        ></input>
+        <button
+          disabled={!approvePayToken}
+          className={!approvePayToken ? "btn-secondary" : "btn-primary"}
+          onClick={() => approvePayToken?.()}
+        >
+          Update Allowance
+        </button>
+      </div>
     </div>
   );
 }
 
-export default CreateService;
+export default Approve;

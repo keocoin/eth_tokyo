@@ -15,7 +15,7 @@ function Renew() {
   return (
     <div>
       <button disabled={!write} onClick={() => write?.()}>
-        Sub
+        Renew
       </button>
     </div>
   );

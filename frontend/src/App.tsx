@@ -1,18 +1,16 @@
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import { WagmiConfig, createClient, configureChains } from "wagmi";
 import { infuraProvider } from "wagmi/providers/infura";
-import { polygonMumbai, mainnet } from "wagmi/chains";
+import { polygonMumbai } from "wagmi/chains";
 import { InjectedConnector } from "wagmi/connectors/injected";
 
 import { publicProvider } from "wagmi/providers/public";
 
 import Nav from "./components/Nav";
-import Provider from "./components/Provider";
-import Service from "./components/Service";
-import Subscription from "./components/Sub";
+import NewService from "./components/NewService";
+import Services from "./components/Services";
+import Subscription from "./components/Subscribe";
 import SignMessage from "./components/Approve";
-import GetInfor from "./GetInfor";
-import Renew from "./Renew";
 
 const { chains, provider } = configureChains(
   [polygonMumbai],
@@ -31,9 +29,9 @@ function App() {
       <Nav />
       <div className="max-w-screen-sm mx-auto py-8">
         <Routes>
-          <Route path="provider" element={<Provider />} />
-          <Route path="service" element={<Service />} />
-          <Route
+          <Route path="service" element={<NewService />} />
+          <Route path="user" element={<Services />} />
+          {/* <Route
             path="user"
             element={
               <>
@@ -41,11 +39,8 @@ function App() {
                 <SignMessage />
               </>
             }
-          />
+          /> */}
         </Routes>
-
-        {/* <GetInfor />
-        <Renew /> */}
       </div>
     </WagmiConfig>
   );
